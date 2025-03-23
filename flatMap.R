@@ -30,7 +30,11 @@ flat_map<-function(data=NULL,#should be a data.frame with a valid geoid for fips
     }
     #no choice on smaller geographies, must have a state argument
     if(geography=="zcta5"){
-      shp<-zctas(state=state,year=year)#wait this is shp and works so much better!!!
+      if(is.null(state)){
+        shp<-zctas(year=year)
+      }else{
+        shp<-zctas(state=state,year=ifelse(as.numeric(year)>=2010,2010,2000))
+      }
     }
     if(geography=="tract"){
       shp<-tracts(state=state,year=year)#ok tigris can do it all?
@@ -48,7 +52,16 @@ flat_map<-function(data=NULL,#should be a data.frame with a valid geoid for fips
       shp<-merge(shp,data,by.x="GEOID10",by.y=geoid,all.x=T)
     }
   }else{#return error, no shp
-    print("Error: No suitable geoid on shp file. Must use Census provided geometries on tigris package or similar .shp file")
+    if("GEOID20" %in% names(as.data.frame(shp))){#if not geoid10, then error
+      if("ZCTA5CE20" %in% names(as.data.frame(shp))){#if zip, then use zcta5ce10
+        shp<-merge(shp,data,by.x="ZCTA5CE20",by.y=geoid,all.x=T)
+      }else{#if not zip, then use geoid20
+        shp<-merge(shp,data,by.x="GEOID20",by.y=geoid,all.x=T)
+      }
+    }else{#return error, no shp
+      shp<-merge(shp,data,by.x="GEOID",by.y=geoid,all.x=T)
+      #print("Plausibly no suitable geoid to link from tigris")
+    }
   }
   if(length(var)==1){#for single variable plotting
     tm<-tm_shape(shp)+
@@ -56,13 +69,13 @@ flat_map<-function(data=NULL,#should be a data.frame with a valid geoid for fips
               palette=brewer.pal(bin,palette),
               textNA="No Data",
               colorNA="black",
-              alpha=0.55,
+              alpha=0.85,
               border.col="gray20",
               border.alpha=0.8,
               group=var,
               midpoint=NA)+
       tm_borders()+
-      tm_scale_bar()
+      tm_layout(legend.outside=T)
   }else{
     tm<-NULL
     for(i in 1:length(var)){
@@ -71,13 +84,13 @@ flat_map<-function(data=NULL,#should be a data.frame with a valid geoid for fips
                 palette=brewer.pal(bin,palette),
                 textNA="No Data",
                 colorNA="black",
-                alpha=0.55,
+                alpha=0.85,
                 border.col="gray20",
                 border.alpha=0.8,
                 group=var[i],
                 midpoint=NA)+
         tm_borders()+
-        tm_scale_bar()
+        tm_layout(legend.outside=T)
       tm<-tm+tmx
     }
   }
